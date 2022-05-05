@@ -1,0 +1,36 @@
+{
+  "name": "verge-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start:dev": "ts-node-dev --transpile-only -r dotenv/config src/app.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "express": "^4.18.1",
+    "graphsql": "^0.0.0",
+    "joi": "^17.6.0",
+    "pg": "^8.7.3",
+    "reflect-metadata": "^0.1.13",
+    "ts-node-dev": "^1.1.8",
+    "typedi": "^0.10.0",
+    "typeorm": "^0.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/node": "^17.0.31",
+    "@typescript-eslint/eslint-plugin": "^4.28.3",
+    "@typescript-eslint/parser": "^4.28.3",
+    "eslint": "7.32.0",
+    "eslint-config-airbnb": "^18.2.1",
+    "eslint-config-next": "12.1.4",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-import-resolver-babel-module": "^5.2.0",
+    "eslint-plugin-import": "2.22.1",
+    "eslint-plugin-jsx-a11y": "^6.4.1",
+    "eslint-plugin-prettier": "^3.4.0",
+    "prettier": "^2.3.2",
+    "typescript": "^4.6.4"
+  }
+}

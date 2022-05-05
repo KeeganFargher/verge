@@ -1,0 +1,60 @@
+{
+  "extends": [
+    "airbnb",
+    "prettier",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": ["@typescript-eslint", "prettier"],
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": 2018,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "import/no-unresolved": 0,
+    "prettier/prettier": [
+      "error",
+      {
+        "bracketSpacing": true,
+        "jsxBracketSameLine": true,
+        "singleQuote": false,
+        "trailingComma": "all",
+        "tabWidth": 2,
+        "printWidth": 100,
+        "endOfLine": "auto",
+        "useTabs": true
+      }
+    ],
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": "off",
+    "import/extensions": ["error", "never"],
+    "react/prop-types": 0,
+    "no-shadow": "off",
+    "import/no-extraneous-dependencies": "off",
+    "@typescript-eslint/ban-ts-ignore": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/no-shadow": ["error"],
+    "radix": "off",
+    "no-plusplus": "off",
+    "no-param-reassign": "off",
+    "global-require": "off",
+    "react/no-unescaped-entities": "off",
+    "import/no-mutable-exports": "off",
+    "no-underscore-dangle": "off",
+    "no-nested-ternary": "off",
+    "import/prefer-default-export": "off",
+    "no-bitwise": "off",
+    "react/jsx-props-no-spreading": "off",
+    "react/jsx-no-bind": "off",
+    "react/require-default-props": "off",
+    "react/destructuring-assignment": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "no-unused-expressions": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-unused-vars": "off"
+  }
+}
