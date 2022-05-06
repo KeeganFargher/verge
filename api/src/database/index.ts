@@ -1,17 +1,10 @@
-import { createConnection, Connection, ConnectionOptions, useContainer } from "typeorm";
-import { Container } from "typedi";
-import { dbEntities } from "../entities";
+import { DataSource } from "typeorm";
+import { Author, Post, Status } from "./entity";
+import config from "../config";
 
-const createDbConnection = async (options: ConnectionOptions): Promise<Connection> => {
-	useContainer(Container);
-	return createConnection({ ...options, entities: dbEntities })
-		.then((connection) => {
-			return connection;
-		})
-		.catch((err: Error) => {
-			console.error(err.message);
-			throw err.message;
-		});
-};
-
-export default createDbConnection;
+export const AppDataSource = new DataSource({
+	...config.database,
+	type: "postgres",
+	entities: [Author, Post, Status],
+	migrations: [`${__dirname}migrations/*.ts`],
+});

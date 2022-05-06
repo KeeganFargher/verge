@@ -1,0 +1,14 @@
+{
+  "name": "default",
+  "type": "postgres",
+  "host": "localhost",
+  "port": 5434,
+  "username": "postgres",
+  "password": "postgres@2020",
+  "entities": ["./src/database/entity/*.ts"],
+  "migrations": ["./src/database/migrations/*.ts"],
+  "cli": {
+    "entitiesDir": "./src/entities",
+    "migrationsDir": "./src/database/migrations/*.ts"
+  }
+}
