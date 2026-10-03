@@ -9,6 +9,7 @@ import {
   minTurnRadius,
   centerSamples,
   proximityZone,
+  quadraticMinRadius,
   rayIntersection,
   sampleOffset,
   sweptSamples,
@@ -120,8 +121,32 @@ function validateDesign(d: Design): Map<number, DesignNode> {
     }
     if (r.lanesAB + r.lanesBA === 0) throw new CompileError(`Road ${r.id} has no lanes`, null, r.id);
     if (!(r.speed >= 5 && r.speed <= 200)) throw new CompileError(`Road ${r.id} has an invalid speed limit`, null, r.id);
+    if (r.curve !== null) validateBend(r, r.curve, nodes.get(r.a)!, nodes.get(r.b)!);
   }
   return nodes;
+}
+
+/**
+ * Tightest radius (m) a curved road with these lanes may have. Lanes and kerbs are offset from
+ * the centre line, so inside a bend tighter than the road is wide (or at a cusp, where the curve
+ * doubles back) they fold over themselves and the road has no sides. One lane width of slack
+ * keeps the inner sidewalk and the innermost lane a real curve.
+ */
+export function minBendRadius(lanesAB: number, lanesBA: number): number {
+  return ((lanesAB + lanesBA) * LANE_WIDTH) / 2 + LANE_WIDTH;
+}
+
+function validateBend(r: DesignRoad, c: { x: number; y: number }, a: DesignNode, b: DesignNode): void {
+  if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) throw new CompileError(`Road ${r.id} has an invalid curve`, null, r.id);
+  const need = minBendRadius(r.lanesAB, r.lanesBA);
+  const radius = quadraticMinRadius(new Vector2(a.x, a.y), new Vector2(c.x, c.y), new Vector2(b.x, b.y));
+  if (radius < need) {
+    throw new CompileError(
+      `Road ${r.id} bends too sharply: its tightest radius is ${radius.toFixed(1)} m, its width needs ${need.toFixed(1)} m`,
+      null,
+      r.id,
+    );
+  }
 }
 
 export function compileNetwork(design: Design): Network {
@@ -366,7 +391,9 @@ function buildJunction(net: Network, ids: Ids, node: DesignNode, ends: RoadEnd[]
     });
   }
   computeConflicts(j);
-  j.polygon = junctionPolygon(j.arms);
+  const outline = junctionPolygon(j.arms);
+  j.polygon = outline.points;
+  j.outlineKerbs = outline.kerbs;
   net.junctions.push(j);
 }
 
@@ -450,9 +477,11 @@ function computeConflicts(j: Junction): void {
 /**
  * Paved outline of a junction: the trimmed ends of every arm joined by kerb fillets. Each
  * fillet bends towards where the two facing road edges would meet, giving rounded corners.
+ * Edges across an arm's end are road openings; everything else is kerb.
  */
-function junctionPolygon(arms: Arm[]): Vector2[] {
-  const pts: Vector2[] = [];
+function junctionPolygon(arms: Arm[]): { points: Vector2[]; kerbs: boolean[] } {
+  const points: Vector2[] = [];
+  const kerbs: boolean[] = [];
   const n = arms.length;
   for (let i = 0; i < n; i++) {
     const arm = arms[i];
@@ -462,16 +491,20 @@ function junctionPolygon(arms: Arm[]): Vector2[] {
     const left = arm.end.clone().addScaledVector(ni, -arm.halfWidth);
     const right = arm.end.clone().addScaledVector(ni, arm.halfWidth);
     const nextLeft = next.end.clone().addScaledVector(nn, -next.halfWidth);
-    pts.push(left, right);
+    points.push(left, right);
+    kerbs.push(false, true);
     const hit = rayIntersection(right, arm.dir, nextLeft, next.dir);
     if (hit !== null && hit.t < 0 && hit.u < 0) {
       const ctrl = right.clone().addScaledVector(arm.dir, hit.t);
       const fillet = new QuadraticBezierCurve(right, ctrl, nextLeft);
       const samples = fillet.getPoints(8);
-      for (let s = 1; s < samples.length - 1; s++) pts.push(samples[s]);
+      for (let s = 1; s < samples.length - 1; s++) {
+        points.push(samples[s]);
+        kerbs.push(true);
+      }
     }
   }
-  return pts;
+  return { points, kerbs };
 }
 
 function buildRoundabout(net: Network, ids: Ids, node: DesignNode, ends: RoadEnd[], control: RoundaboutControl): void {

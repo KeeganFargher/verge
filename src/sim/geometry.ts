@@ -34,6 +34,32 @@ export function wrapAngle(a: number): number {
 }
 
 /**
+ * Tightest radius of curvature along the quadratic Bézier a → c → b; 0 where it stops dead and
+ * doubles back (a cusp). With u = c − a and w = b − c, B′(t) = 2(u + (w − u)t) and
+ * B″ = 2(w − u), so B′ × B″ = 4(u × w) is constant and the curvature |B′ × B″| / |B′|³ peaks
+ * where |B′| is smallest.
+ */
+export function quadraticMinRadius(a: Vector2, c: Vector2, b: Vector2): number {
+  const ux = c.x - a.x;
+  const uy = c.y - a.y;
+  const wx = b.x - c.x;
+  const wy = b.y - c.y;
+  const dx = wx - ux;
+  const dy = wy - uy;
+  const dd = dx * dx + dy * dy;
+  // |B′|/2 = |u + d·t| with d = w − u is smallest at t = −(u·d)/|d|² (d = 0: constant speed).
+  const t = dd === 0 ? 0 : -(ux * dx + uy * dy) / dd;
+  const k = 4 * Math.abs(cross(ux, uy, wx, wy));
+  // Collinear points make a straight line, which only has a cusp if B′ vanishes strictly inside
+  // it (control point beyond an end). B′ = 0 at an end (control point on it) is still straight.
+  if (k === 0) return t > 0 && t < 1 ? 0 : Infinity;
+  // Off the line B′ never vanishes, so the speed below is positive.
+  const tc = clamp(t, 0, 1);
+  const speed = 2 * Math.hypot(ux + dx * tc, uy + dy * tc);
+  return speed ** 3 / k;
+}
+
+/**
  * Polyline with cumulative arc length. It is the single geometry type vehicles move on:
  * every lane, turn path and ring arc is sampled into one of these, so the hot simulation
  * loop only ever does a binary search plus a lerp.

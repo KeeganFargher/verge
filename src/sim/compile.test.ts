@@ -150,4 +150,31 @@ describe('compileNetwork', () => {
     b.road(c, b.gate(-200, 0, 0));
     expect(() => compileNetwork(b.design)).toThrow(CompileError);
   });
+
+  it('rejects a curved road that doubles back on itself', () => {
+    const b = new DesignBuilder('cusp');
+    // Control point behind the start, on the same line: the curve runs out, stops dead and turns back.
+    b.road(b.gate(0, 0, 300), b.gate(100, 0, 0), { lanes: 1, curve: { x: -100, y: 0 } });
+    expect(() => compileNetwork(b.design)).toThrow(CompileError);
+  });
+
+  it('rejects a curved road bending tighter than its own width', () => {
+    const b = new DesignBuilder('hairpin');
+    // Tightest radius 0.5 m, on a road 14 m wide.
+    b.road(b.gate(0, 0, 300), b.gate(20, 0, 0), { lanes: 2, curve: { x: 10, y: 200 } });
+    expect(() => compileNetwork(b.design)).toThrow(CompileError);
+  });
+
+  it('accepts a curved road whose control point sits on one of its ends, as it is straight', () => {
+    const b = new DesignBuilder('straight');
+    b.road(b.gate(0, 0, 300), b.gate(200, 0, 0), { lanes: 1, curve: { x: 0, y: 0 } });
+    expect(() => compileNetwork(b.design)).not.toThrow();
+  });
+
+  it('accepts a gently curved road', () => {
+    const b = new DesignBuilder('bend');
+    // Tightest radius 250 m.
+    b.road(b.gate(0, 0, 300), b.gate(200, 0, 0), { lanes: 2, curve: { x: 100, y: 40 } });
+    expect(() => compileNetwork(b.design)).not.toThrow();
+  });
 });

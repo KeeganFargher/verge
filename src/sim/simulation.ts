@@ -131,6 +131,7 @@ export class Simulation {
     readonly net: Network,
     design: Design,
   ) {
+    net.takeOver(this);
     this.side = net.side;
     this.router = new Router(net);
     this.gateways = net.gateways.map((g) => new GatewayState(g, mixSeed(design.traffic.seed, g.nodeId)));
@@ -189,6 +190,8 @@ export class Simulation {
   }
 
   step(): void {
+    // A replaced run stepping would corrupt the state of the run that now owns the network.
+    if (!this.net.ownedBy(this)) throw new Error('This simulation has been replaced; its network now belongs to a newer run');
     this.t += DT;
     for (const j of this.net.junctions) if (j.signal !== null) j.signal.step(this.t, DT);
     for (const x of this.vehicles) x.nextAcc = this.decide(x);

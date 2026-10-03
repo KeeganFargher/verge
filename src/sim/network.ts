@@ -197,6 +197,8 @@ export class Junction {
   arms: Arm[] = [];
   /** Outline of the paved junction area (empty for roundabout arm junctions, drawn by the roundabout). */
   polygon: Vector2[] = [];
+  /** Per outline edge (point i → i+1): true for a kerb, false where a road joins. */
+  outlineKerbs: boolean[] = [];
   /** How the junction is currently controlled. Mutable: control swaps are applied to a running simulation. */
   kind: JunctionKind;
   /** Live control parameters from the design (the same object the editor edits). */
@@ -289,10 +291,46 @@ export class Network {
   readonly junctionsByNode = new Map<number, Junction[]>();
   readonly gatewaysByNode = new Map<number, Gateway>();
   readonly roadsById = new Map<number, CompiledRoad>();
+  /**
+   * The run currently driving on this network. Runtime state lives on the tracks and junctions
+   * themselves (vehicle lists, signal controllers, delay stats, learned travel times) so the hot
+   * loop never has to look anything up; the price is that only one run can use a network at a time.
+   */
+  private owner: object | null = null;
 
   constructor(
     readonly drivingSide: DrivingSide,
     /** +1 for right-hand traffic, −1 for left-hand traffic. Mirrors every side-dependent rule. */
     readonly side: 1 | -1,
   ) {}
+
+  /**
+   * Hands the network to a new run, wiping everything the previous run left on it. Restarting
+   * and experiments reuse the compiled network (recompiling would also rebuild every mesh), so a
+   * new run must not inherit the old run's vehicles: they would stay on the tracks as obstacles
+   * nobody moves.
+   */
+  takeOver(owner: object): void {
+    for (const l of this.lanes) {
+      l.vehicles.length = 0;
+      l.tails.length = 0;
+      l.mergeRequests.length = 0;
+    }
+    for (const c of this.connectors) {
+      c.vehicles.length = 0;
+      c.tails.length = 0;
+    }
+    // Controllers are rebuilt from the design by the new run's bindControls.
+    for (const j of this.junctions) {
+      j.stats.reset();
+      j.signal = null;
+      j.stop = null;
+    }
+    for (const l of this.links) l.observedTime = l.freeFlowTime;
+    this.owner = owner;
+  }
+
+  ownedBy(owner: object): boolean {
+    return this.owner === owner;
+  }
 }

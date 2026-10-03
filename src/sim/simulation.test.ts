@@ -152,6 +152,27 @@ describe('simulation', () => {
     expectHealthy(run(crossroads({ ...defaultRoundabout(), priority: 'entering' }, { lanes: 1, inflow: 200 }), 10), 100);
   });
 
+  it('starts a new run on an already simulated network as if it were fresh', () => {
+    const d = crossroads(defaultSignal(), { lanes: 2, inflow: 500 });
+    const fresh = new Simulation(compileNetwork(d), d);
+    fresh.run(300);
+    const net = compileNetwork(d);
+    new Simulation(net, d).run(200);
+    const again = new Simulation(net, d);
+    again.run(300);
+    expect(again.metrics.incidentLog).toEqual([]);
+    expect(again.metrics.trips).toBe(fresh.metrics.trips);
+    expect(again.metrics.delaySum).toBeCloseTo(fresh.metrics.delaySum, 9);
+  });
+
+  it('refuses to step a run whose network was taken over by a newer run', () => {
+    const d = crossroads(defaultSignal());
+    const net = compileNetwork(d);
+    const old = new Simulation(net, d);
+    new Simulation(net, d);
+    expect(() => old.step()).toThrow();
+  });
+
   it('is deterministic for a given seed', () => {
     const d = crossroads(defaultSignal(), { lanes: 2, inflow: 400 });
     const a = run(d, 5).sim;
