@@ -243,13 +243,16 @@ export function col(o: StackOpts, ...kids: Widget[]): Stack {
   return new Stack('col', o, kids);
 }
 
-/** Rebuilds its content whenever the key changes (e.g. the inspector when the selection changes). */
+/**
+ * Rebuilds its content whenever the key changes (e.g. the inspector when the selection changes).
+ * Keys compare by identity, so an object (a vehicle) works as a key as well as a string.
+ */
 export class Dyn extends Widget {
   private child: Widget | null = null;
-  private key: string | null = null;
+  private key: unknown = null;
 
   constructor(
-    private readonly keyOf: Getter<string>,
+    private readonly keyOf: Getter<unknown>,
     private readonly build: () => Widget,
   ) {
     super();

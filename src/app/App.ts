@@ -2,6 +2,7 @@ import { NeutralToneMapping, Vector3, WebGLRenderer, type Vector2 } from 'three'
 import { CompileError } from '../sim/compile';
 import { cloneDesign, nodeDegree, type ControlType, type Design, type DrivingSide } from '../sim/design';
 import type { Network } from '../sim/network';
+import type { Vehicle } from '../sim/vehicle';
 import { DT, type Simulation } from '../sim/simulation';
 import { presetById } from '../presets';
 import { World } from '../render/World';
@@ -20,7 +21,8 @@ import { downloadProject, parseProject, pickFile, readImage } from './files';
 import type { Background, Project } from './project';
 import { Session } from './session';
 
-export type Selection = { kind: 'node'; id: number } | { kind: 'road'; id: number } | { kind: 'vehicle'; id: number } | null;
+/** Vehicles are held by object: their ids start again from 1 in every run, so an id could name a car of another run. */
+export type Selection = { kind: 'node'; id: number } | { kind: 'road'; id: number } | { kind: 'vehicle'; vehicle: Vehicle } | null;
 export type Modal = 'presets' | 'settings' | 'help' | null;
 
 export interface RoadToolSettings {
@@ -86,7 +88,7 @@ export class App {
   experiments: ExperimentResult[] = [];
   experimentMinutes = 15;
   /** Vehicle the camera follows, if any. */
-  follow: number | null = null;
+  follow: Vehicle | null = null;
   toasts: Toast[] = [];
   private toastId = 0;
   private accumulator = 0;
@@ -160,6 +162,7 @@ export class App {
 
   private apply(next: Design, quiet: boolean): boolean {
     const prev = this.design;
+    const run = this.session.sim;
     const experimenting = this.session.experiment !== null;
     let rebuilt: boolean;
     try {
@@ -170,6 +173,7 @@ export class App {
       return false;
     }
     this.project.design = next;
+    if (this.session.sim !== run) this.forgetVehicles();
     if (experimenting) this.toast('Experiment stopped: the design changed', 'info');
     this.networkChanged(rebuilt || markingsKey(next) !== markingsKey(prev));
     return true;
@@ -345,9 +349,19 @@ export class App {
 
   restart(): void {
     this.session.restart(this.design);
-    this.selection = this.selection?.kind === 'vehicle' ? null : this.selection;
+    this.forgetVehicles();
     this.toast('Traffic restarted', 'info');
     this.hud.invalidate();
+  }
+
+  /**
+   * Lets go of the vehicles of a run that was just replaced. Holding them by object already keeps
+   * them from resolving to cars of the new run; this keeps the inspector from reporting a car of
+   * the old run as having reached its destination.
+   */
+  private forgetVehicles(): void {
+    if (this.selection?.kind === 'vehicle') this.selection = null;
+    this.follow = null;
   }
 
   /** Summary of junction controls, used to label experiment runs. */
@@ -366,6 +380,7 @@ export class App {
     const scale = this.design.traffic.demandScale;
     const label = `${this.controlSummary()}${scale === 1 ? '' : ` · ×${scale.toFixed(2)}`}`;
     this.session.startExperiment(this.design, label, this.experimentMinutes, 5);
+    this.forgetVehicles();
     this.running = true;
     this.toast(`Running ${this.experimentMinutes}-minute experiment…`, 'info');
     this.hud.invalidate();
@@ -417,10 +432,10 @@ export class App {
       this.labelTimer = 1;
       this.updateLabels();
     }
-    if (this.follow !== null) {
-      const v = this.sim.vehicles.find((x) => x.id === this.follow);
-      if (v === undefined) this.follow = null;
-      else this.world.rig.setGoal(v.x, v.y, this.world.rig.distance);
+    const followed = this.follow;
+    if (followed !== null) {
+      if (this.sim.vehicles.includes(followed)) this.world.rig.setGoal(followed.x, followed.y, this.world.rig.distance);
+      else this.follow = null;
     }
     this.editor.refreshOverlay();
     this.world.grid.visible = this.view.grid || this.tool === 'road';

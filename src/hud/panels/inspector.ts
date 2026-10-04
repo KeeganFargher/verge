@@ -437,30 +437,25 @@ function doing(v: Vehicle): string {
   return v.acc < -1 ? 'Slowing down' : 'Driving';
 }
 
-function vehicleInspector(app: App, id: number): Widget {
-  const v = () => app.sim.vehicles.find((x) => x.id === id) ?? null;
-  return new Dyn(
-    () => (v() === null ? 'gone' : 'here'),
-    () => {
-      const veh = v();
-      if (veh === null) {
-        return col({ gap: 10 }, header(app, Car, () => `Vehicle #${id}`, () => 'Reached its destination'), new Para('This vehicle has left the network.', W));
-      }
-      const cur = () => v() ?? veh;
-      return col(
-        { gap: 8 },
-        header(app, veh.kind === 'truck' ? Truck : Car, () => `${veh.kind === 'truck' ? 'Truck' : 'Car'} #${id}`, () => `Heading for exit #${cur().dest.nodeId}`),
-        row({ gap: 8, align: 'center', width: W, pad: [6, 8, 6, 8], bg: theme.raised, radius: 8 }, new Icon(CircleDot, 14, theme.accent), new Label(() => doing(cur()), { weight: 600 })),
-        stat('Speed', () => `${Math.round(cur().v * 3.6)} km/h`),
-        stat('Trip time', () => secs(app.sim.t - cur().arrivalTime)),
-        stat('Stops', () => int(cur().stops)),
-        stat('Route', () => `${cur().routeIdx + 1} of ${cur().route.length} roads`),
-        stat('Length', () => `${cur().length.toFixed(1)} m`),
-        new Toggle('Follow with camera', () => app.follow === id, (on) => ((app.follow = on ? id : null), app.hud.invalidate())),
-        row({ gap: 8 }, new Button({ icon: Crosshair, label: 'Centre view', onClick: () => app.world.rig.setGoal(cur().x, cur().y, Math.min(app.world.rig.distance, 120)) })),
-      );
-    },
-  );
+function vehicleInspector(app: App, veh: Vehicle): Widget {
+  const driving = () => app.sim.vehicles.includes(veh);
+  return new Dyn(driving, () => {
+    if (!driving()) {
+      return col({ gap: 10 }, header(app, Car, () => `Vehicle #${veh.id}`, () => 'Reached its destination'), new Para('This vehicle has left the network.', W));
+    }
+    return col(
+      { gap: 8 },
+      header(app, veh.kind === 'truck' ? Truck : Car, () => `${veh.kind === 'truck' ? 'Truck' : 'Car'} #${veh.id}`, () => `Heading for exit #${veh.dest.nodeId}`),
+      row({ gap: 8, align: 'center', width: W, pad: [6, 8, 6, 8], bg: theme.raised, radius: 8 }, new Icon(CircleDot, 14, theme.accent), new Label(() => doing(veh), { weight: 600 })),
+      stat('Speed', () => `${Math.round(veh.v * 3.6)} km/h`),
+      stat('Trip time', () => secs(app.sim.t - veh.arrivalTime)),
+      stat('Stops', () => int(veh.stops)),
+      stat('Route', () => `${veh.routeIdx + 1} of ${veh.route.length} roads`),
+      stat('Length', () => `${veh.length.toFixed(1)} m`),
+      new Toggle('Follow with camera', () => app.follow === veh, (on) => ((app.follow = on ? veh : null), app.hud.invalidate())),
+      row({ gap: 8 }, new Button({ icon: Crosshair, label: 'Centre view', onClick: () => app.world.rig.setGoal(veh.x, veh.y, Math.min(app.world.rig.distance, 120)) })),
+    );
+  });
 }
 
 export function inspector(app: App): Panel {
@@ -472,14 +467,14 @@ export function inspector(app: App): Panel {
         if (s === null) return 'none';
         if (s.kind === 'node') return `n${s.id}:${nodeDegree(app.design, s.id)}:${app.netVersion}`;
         if (s.kind === 'road') return `r${s.id}:${app.netVersion}`;
-        return `v${s.id}`;
+        return s.vehicle;
       },
       () => {
         const s = app.selection;
         if (s === null) return new Label('');
         switch (s.kind) {
           case 'vehicle':
-            return vehicleInspector(app, s.id);
+            return vehicleInspector(app, s.vehicle);
           case 'road':
             return roadInspector(app, s.id);
           case 'node': {

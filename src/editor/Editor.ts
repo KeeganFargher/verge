@@ -1,5 +1,6 @@
 import { Vector2 } from 'three';
-import type { App } from '../app/App';
+import type { App, Selection } from '../app/App';
+import type { Vehicle } from '../sim/vehicle';
 import { LANE_WIDTH, defaultControl, findNode, findRoad, nodeDegree, type Design } from '../sim/design';
 import { minBendRadius } from '../sim/compile';
 import { quadraticMinRadius } from '../sim/geometry';
@@ -19,7 +20,7 @@ export interface WorldPointer {
 export type Pick =
   | { kind: 'node'; id: number; point: Vector2 }
   | { kind: 'road'; id: number; point: Vector2 }
-  | { kind: 'vehicle'; id: number };
+  | { kind: 'vehicle'; vehicle: Vehicle };
 
 type Drag =
   | { kind: 'node'; id: number; before: Design; from: Vector2; moved: boolean }
@@ -27,6 +28,11 @@ type Drag =
   | { kind: 'image'; from: Vector2; x0: number; y0: number };
 
 const GRID = 5;
+
+/** A pick or selection as it goes into the overlay key: a vehicle is an object graph, not JSON. */
+function keyOf(p: Pick | Selection): unknown {
+  return p !== null && p.kind === 'vehicle' ? ['vehicle', p.vehicle.id] : p;
+}
 
 /** Turns pointer input into design edits for whichever tool is active, and draws the feedback. */
 export class Editor {
@@ -62,12 +68,12 @@ export class Editor {
     const w = p.world;
     if (w === null) return null;
     if (vehicles) {
-      let best: { id: number; d: number } | null = null;
+      let best: { vehicle: Vehicle; d: number } | null = null;
       for (const v of this.app.sim.vehicles) {
         const d = Math.hypot(v.x - w.x, v.y - w.y);
-        if (d < Math.max(3, p.pixel * 10) && (best === null || d < best.d)) best = { id: v.id, d };
+        if (d < Math.max(3, p.pixel * 10) && (best === null || d < best.d)) best = { vehicle: v, d };
       }
-      if (best !== null) return { kind: 'vehicle', id: best.id };
+      if (best !== null) return { kind: 'vehicle', vehicle: best.vehicle };
     }
     let node: { id: number; d: number } | null = null;
     for (const n of this.design.nodes) {
@@ -123,7 +129,7 @@ export class Editor {
         if (hit === null) return false;
         if (hit.kind === 'node') this.drag = { kind: 'node', id: hit.id, before: this.design, from: w.clone(), moved: false };
         else if (hit.kind === 'road') this.drag = { kind: 'bend', roadId: hit.id, before: this.design, from: w.clone(), moved: false };
-        this.app.select(hit.kind === 'vehicle' ? { kind: 'vehicle', id: hit.id } : { kind: hit.kind, id: hit.id });
+        this.app.select(hit.kind === 'vehicle' ? { kind: 'vehicle', vehicle: hit.vehicle } : { kind: hit.kind, id: hit.id });
         return true;
       }
       case 'road':
@@ -223,7 +229,7 @@ export class Editor {
       case 'traffic': {
         const hit = this.pick(p, true);
         if (hit === null) return;
-        this.app.select(hit.kind === 'vehicle' ? { kind: 'vehicle', id: hit.id } : { kind: hit.kind, id: hit.id });
+        this.app.select(hit.kind === 'vehicle' ? { kind: 'vehicle', vehicle: hit.vehicle } : { kind: hit.kind, id: hit.id });
         return;
       }
       case 'map': {
@@ -312,11 +318,11 @@ export class Editor {
     const app = this.app;
     const o = app.views.overlay;
     const sel = app.selection;
-    const veh = sel !== null && sel.kind === 'vehicle' ? app.sim.vehicles.find((v) => v.id === sel.id) : undefined;
+    const veh = sel !== null && sel.kind === 'vehicle' && app.sim.vehicles.includes(sel.vehicle) ? sel.vehicle : undefined;
     const key = JSON.stringify([
       app.tool,
-      this.hover,
-      sel,
+      keyOf(this.hover),
+      keyOf(sel),
       this.roadStart,
       this.roadControl,
       this.cursor?.toArray(),

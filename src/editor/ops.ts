@@ -274,11 +274,13 @@ export function updateRoad(source: Design, roadId: number, patch: Partial<Omit<D
   return normalize(d);
 }
 
-/** Swaps a road's direction (for one-way roads). */
+/**
+ * Swaps a road's two directions (turns a one-way road around). Only the lane counts swap:
+ * also swapping the ends would describe the same traffic again.
+ */
 export function reverseRoad(source: Design, roadId: number): Design {
   const d = cloneDesign(source);
   const r = findRoad(d, roadId);
-  [r.a, r.b] = [r.b, r.a];
   [r.lanesAB, r.lanesBA] = [r.lanesBA, r.lanesAB];
   return d;
 }

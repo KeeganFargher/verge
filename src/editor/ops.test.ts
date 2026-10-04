@@ -2,7 +2,7 @@ import { Vector2 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { emptyDesign, nodeDegree } from '../sim/design';
 import { compileNetwork } from '../sim/compile';
-import { drawRoad, moveNode, removeNode, removeRoad, splitRoad } from './ops';
+import { drawRoad, moveNode, removeNode, removeRoad, reverseRoad, splitRoad } from './ops';
 
 const draft = { lanesAB: 1, lanesBA: 1, speed: 50 };
 
@@ -53,6 +53,14 @@ describe('editor operations', () => {
     const first = drawRoad(emptyDesign('t', 'right'), { kind: 'free', x: 0, y: 0 }, { kind: 'free', x: 200, y: 0 }, null, draft);
     const [a, b] = first.design.nodes;
     expect(() => drawRoad(first.design, { kind: 'node', id: a.id }, { kind: 'node', id: b.id }, null, draft)).toThrow();
+  });
+
+  it('turns a one-way road around', () => {
+    const d = drawRoad(emptyDesign('t', 'right'), { kind: 'free', x: 0, y: 0 }, { kind: 'free', x: 200, y: 0 }, null, { ...draft, lanesBA: 0 }).design;
+    const road = d.roads[0];
+    const travel = (design: typeof d) => compileNetwork(design).links.map((l) => [l.fromNode, l.toNode]);
+    expect(travel(d)).toEqual([[road.a, road.b]]);
+    expect(travel(reverseRoad(d, road.id))).toEqual([[road.b, road.a]]);
   });
 
   it('removes roads and the nodes they leave behind', () => {
