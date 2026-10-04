@@ -255,7 +255,7 @@ function trafficFlyout(app: App): Widget {
         tip: 'Share of new vehicles that are trucks: longer, slower to accelerate.',
       }),
     ),
-    hint('Click an entry (blue disc at a road end) to set how much traffic it sends and where to. Click a car to see what it is doing.'),
+    hint('Click an entry (the blue disc at a road end, or its flow tag) to set how much traffic it sends and where to. Click a car to see what it is doing.'),
   );
 }
 

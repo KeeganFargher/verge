@@ -15,6 +15,8 @@ export interface WorldPointer {
   /** Metres covered by one screen pixel at the pointer (for zoom-independent pick radii). */
   pixel: number;
   shift: boolean;
+  /** Design node whose floating tag (entry flow, junction delay) is under the pointer. */
+  tag: number | null;
 }
 
 export type Pick =
@@ -65,6 +67,13 @@ export class Editor {
   // ------------------------------------------------------------------ picking
 
   pick(p: WorldPointer, vehicles: boolean): Pick | null {
+    // A tag stands for its entry or junction where clicking inspects or converts it; not while
+    // bulldozing, where a stray click on a tag would delete a road.
+    const tool = this.app.tool;
+    if (p.tag !== null && (tool === 'select' || tool === 'traffic' || tool === 'junction')) {
+      const n = findNode(this.design, p.tag);
+      return { kind: 'node', id: n.id, point: new Vector2(n.x, n.y) };
+    }
     const w = p.world;
     if (w === null) return null;
     if (vehicles) {

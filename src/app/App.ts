@@ -196,7 +196,9 @@ export class App {
     if (sel !== null && sel.kind === 'node' && !this.design.nodes.some((n) => n.id === sel.id)) this.selection = null;
     if (sel !== null && sel.kind === 'road' && !this.design.roads.some((r) => r.id === sel.id)) this.selection = null;
     for (const w of this.net.warnings) this.toast(w, 'info');
-    this.labelTimer = 0;
+    // Tags are clickable, so one for a node that no longer exists must not outlive the edit.
+    this.updateLabels();
+    this.labelTimer = 1;
     this.hud.invalidate();
   }
 
@@ -468,14 +470,14 @@ export class App {
       if (passed === 0) continue;
       const delay = js.reduce((s, j) => s + j.stats.delaySum, 0) / passed;
       const grade = levelOfService(delay, n.control.type === 'signal');
-      labels.push({ key: `j${n.id}`, x: n.x, y: n.y, lift: 9, text: `${delay.toFixed(0)} s`, badge: losColor(grade), badgeText: grade });
+      labels.push({ key: `j${n.id}`, node: n.id, x: n.x, y: n.y, lift: 9, text: `${delay.toFixed(0)} s`, badge: losColor(grade), badgeText: grade });
     }
     for (const st of this.sim.gateways) {
       const g = st.gateway;
       if (g.source === null) continue;
       const rate = st.rate * 3600;
       const text = st.queue.length > 0 ? `${Math.round(rate)}/h · ${st.queue.length} waiting` : `${Math.round(rate)}/h`;
-      labels.push({ key: `g${g.nodeId}`, x: g.position.x, y: g.position.y, lift: 4, text, badge: st.queue.length > 5 ? '#ff8a4c' : '#5aa9ff', badgeText: '↓' });
+      labels.push({ key: `g${g.nodeId}`, node: g.nodeId, x: g.position.x, y: g.position.y, lift: 4, text, badge: st.queue.length > 5 ? '#ff8a4c' : '#5aa9ff', badgeText: '↓' });
     }
     this.views.labels.set(labels);
   }

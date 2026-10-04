@@ -59,7 +59,8 @@ export class Input {
     this.ndc.set((x / this.app.hud.width) * 2 - 1, -(y / this.app.hud.height) * 2 + 1);
     const g = this.app.world.rig.groundAt(this.ndc);
     const world = g === null ? null : new Vector2(g.x, g.z);
-    return { world, pixel: this.app.pixelSize(world), shift };
+    const tag = this.app.views.labels.hit(this.ndc, this.app.world.rig.camera);
+    return { world, pixel: this.app.pixelSize(world), shift, tag };
   }
 
   private down(e: PointerEvent): void {

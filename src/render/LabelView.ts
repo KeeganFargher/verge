@@ -1,7 +1,9 @@
-import { CanvasTexture, Group, LinearFilter, SRGBColorSpace, Sprite, SpriteMaterial } from 'three';
+import { CanvasTexture, Group, LinearFilter, Raycaster, SRGBColorSpace, Sprite, SpriteMaterial, type Camera, type Vector2 } from 'three';
 
 export interface LabelSpec {
   key: string;
+  /** Design node the tag describes; clicking the tag picks it. */
+  node: number;
   x: number;
   y: number;
   /** Height above the ground (m). */
@@ -13,6 +15,7 @@ export interface LabelSpec {
 }
 
 interface Entry {
+  node: number;
   sprite: Sprite;
   canvas: HTMLCanvasElement;
   texture: CanvasTexture;
@@ -26,6 +29,7 @@ const PX_HEIGHT = 24;
 export class LabelView {
   readonly group = new Group();
   private readonly entries = new Map<string, Entry>();
+  private readonly raycaster = new Raycaster();
   private viewportHeight = 800;
   private readonly dpr = Math.min(2, window.devicePixelRatio || 1);
 
@@ -63,7 +67,7 @@ export class LabelView {
         const sprite = new Sprite(new SpriteMaterial({ map: texture, sizeAttenuation: false, depthTest: false, transparent: true, toneMapped: false }));
         sprite.center.set(0.5, 0);
         sprite.renderOrder = 10;
-        e = { sprite, canvas, texture, drawn: '', aspect: 1 };
+        e = { node: l.node, sprite, canvas, texture, drawn: '', aspect: 1 };
         this.entries.set(l.key, e);
         this.group.add(sprite);
       }
@@ -75,6 +79,18 @@ export class LabelView {
         this.applyScale(e);
       }
     }
+  }
+
+  /**
+   * Design node whose tag is under a screen point (normalised device coordinates), or null.
+   * Tags float above what they describe, so they hide the very disc or junction a click aims at.
+   */
+  hit(ndc: Vector2, camera: Camera): number | null {
+    this.raycaster.setFromCamera(ndc, camera);
+    const hits = this.raycaster.intersectObjects(this.group.children, false);
+    if (hits.length === 0) return null;
+    for (const e of this.entries.values()) if (e.sprite === hits[0].object) return e.node;
+    throw new Error('Hit a sprite that is not a tag');
   }
 
   private draw(e: Entry, l: LabelSpec): void {
